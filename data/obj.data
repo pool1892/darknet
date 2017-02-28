@@ -1,5 +1,5 @@
 classes= 4
 train  = /home/ubuntu/data/train.txt
 valid  = /home/ubuntu/data/test.txt
-names = obj.names
+names = data/obj.names
 backup = backup/

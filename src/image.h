@@ -8,12 +8,30 @@
 #include <math.h>
 #include "box.h"
 
+#ifndef __cplusplus
+#ifdef OPENCV
+#include "opencv2/highgui/highgui_c.h"
+#include "opencv2/imgproc/imgproc_c.h"
+#include "opencv2/core/version.hpp"
+#if CV_MAJOR_VERSION == 3
+#include "opencv2/videoio/videoio_c.h"
+#endif
+#endif
+#endif
+
 typedef struct {
     int h;
     int w;
     int c;
     float *data;
 } image;
+
+#ifndef __cplusplus
+#ifdef OPENCV
+image get_image_from_stream(CvCapture *cap);
+image ipl_to_image(IplImage* src);
+#endif
+#endif
 
 float get_color(int c, int x, int max);
 void flip_image(image a);
@@ -26,28 +44,37 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
 image image_distance(image a, image b);
 void scale_image(image m, float s);
 image crop_image(image im, int dx, int dy, int w, int h);
+image center_crop_image(image im, int w, int h);
 image random_crop_image(image im, int w, int h);
 image random_augment_image(image im, float angle, float aspect, int low, int high, int size);
 void random_distort_image(image im, float hue, float saturation, float exposure);
+image letterbox_image(image im, int w, int h);
 image resize_image(image im, int w, int h);
 image resize_min(image im, int min);
 image resize_max(image im, int max);
+void fill_image(image m, float s);
 void translate_image(image m, float s);
 void normalize_image(image p);
 image rotate_image(image m, float rad);
 void rotate_image_cw(image im, int times);
 void embed_image(image source, image dest, int dx, int dy);
+void ghost_image(image source, image dest, int dx, int dy);
+void place_image(image im, int w, int h, int dx, int dy, image canvas);
 void saturate_image(image im, float sat);
 void exposure_image(image im, float sat);
 void distort_image(image im, float hue, float sat, float val);
 void saturate_exposure_image(image im, float sat, float exposure);
+void rgb_to_hsv(image im);
 void hsv_to_rgb(image im);
+void yuv_to_rgb(image im);
+void rgb_to_yuv(image im);
 void rgbgr_image(image im);
 void constrain_image(image im);
 void composite_3d(char *f1, char *f2, char *out, int delta);
 int best_3d_shift_r(image a, image b, int min, int max);
 
 image grayscale_image(image im);
+void grayscale_image_3c(image im);
 image threshold_image(image im, float thresh);
 
 image collapse_image_layers(image source, int border);

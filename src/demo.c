@@ -10,11 +10,9 @@
 #include <sys/time.h>
 
 #define FRAMES 3
+#define DEMO 1
 
 #ifdef OPENCV
-#include "opencv2/highgui/highgui_c.h"
-#include "opencv2/imgproc/imgproc_c.h"
-image get_image_from_stream(CvCapture *cap);
 
 static char **demo_names;
 static image **demo_alphabet;
@@ -31,7 +29,7 @@ static image disp = {0};
 static CvCapture * cap;
 static float fps = 0;
 static float demo_thresh = 0;
-static float demo_hier_thresh = .5;
+static float demo_hier = .5;
 
 static float *predictions[FRAMES];
 static int demo_index = 0;
@@ -44,7 +42,7 @@ void *fetch_in_thread(void *ptr)
     if(!in.data){
         error("Stream closed.");
     }
-    in_s = resize_image(in, net.w, net.h);
+    in_s = letterbox_image(in, net.w, net.h);
     return 0;
 }
 
@@ -64,11 +62,11 @@ void *detect_in_thread(void *ptr)
     if(l.type == DETECTION){
         get_detection_boxes(l, 1, 1, demo_thresh, probs, boxes, 0);
     } else if (l.type == REGION){
-        get_region_boxes(l, 1, 1, demo_thresh, probs, boxes, 0, 0, demo_hier_thresh);
+        get_region_boxes(l, in.w, in.h, net.w, net.h, demo_thresh, probs, boxes, 0, 0, demo_hier, 1);
     } else {
         error("Last layer must produce detections\n");
     }
-    if (nms > 0) do_nms(boxes, probs, l.w*l.h*l.n, l.classes, nms);
+    if (nms > 0) do_nms_obj(boxes, probs, l.w*l.h*l.n, l.classes, nms);
     printf("\033[2J");
     printf("\033[1;1H");
     printf("\nFPS:%.1f\n",fps);
@@ -92,7 +90,7 @@ double get_wall_time()
     return (double)time.tv_sec + (double)time.tv_usec * .000001;
 }
 
-void demo(char *cfgfile, char *weightfile, float thresh, int cam_index, const char *filename, char **names, int classes, int frame_skip, char *prefix, float hier_thresh)
+void demo(char *cfgfile, char *weightfile, float thresh, int cam_index, const char *filename, char **names, int classes, int frame_skip, char *prefix, float hier, int w, int h, int frames, int fullscreen)
 {
     //skip = frame_skip;
     image **alphabet = load_alphabet();
@@ -101,7 +99,7 @@ void demo(char *cfgfile, char *weightfile, float thresh, int cam_index, const ch
     demo_alphabet = alphabet;
     demo_classes = classes;
     demo_thresh = thresh;
-    demo_hier_thresh = hier_thresh;
+    demo_hier = hier;
     printf("Demo\n");
     net = parse_network_cfg(cfgfile);
     if(weightfile){
@@ -116,6 +114,16 @@ void demo(char *cfgfile, char *weightfile, float thresh, int cam_index, const ch
         cap = cvCaptureFromFile(filename);
     }else{
         cap = cvCaptureFromCAM(cam_index);
+
+        if(w){
+            cvSetCaptureProperty(cap, CV_CAP_PROP_FRAME_WIDTH, w);
+        }
+        if(h){
+            cvSetCaptureProperty(cap, CV_CAP_PROP_FRAME_HEIGHT, h);
+        }
+        if(frames){
+            cvSetCaptureProperty(cap, CV_CAP_PROP_FPS, frames);
+        }
     }
 
     if(!cap) error("Couldn't connect to webcam.\n");
@@ -155,8 +163,12 @@ void demo(char *cfgfile, char *weightfile, float thresh, int cam_index, const ch
     int count = 0;
     if(!prefix){
         cvNamedWindow("Demo", CV_WINDOW_NORMAL); 
-        cvMoveWindow("Demo", 0, 0);
-        cvResizeWindow("Demo", 1352, 1013);
+        if(fullscreen){
+            cvSetWindowProperty("Demo", CV_WND_PROP_FULLSCREEN, CV_WINDOW_FULLSCREEN);
+        } else {
+            cvMoveWindow("Demo", 0, 0);
+            cvResizeWindow("Demo", 1352, 1013);
+        }
     }
 
     double before = get_wall_time();
@@ -170,11 +182,24 @@ void demo(char *cfgfile, char *weightfile, float thresh, int cam_index, const ch
             if(!prefix){
                 show_image(disp, "Demo");
                 int c = cvWaitKey(1);
+		if (c != -1) c = c%256;
                 if (c == 10){
                     if(frame_skip == 0) frame_skip = 60;
                     else if(frame_skip == 4) frame_skip = 0;
                     else if(frame_skip == 60) frame_skip = 4;   
                     else frame_skip = 0;
+                } else if (c == 27) {
+                    return;
+                } else if (c == 82) {
+                    demo_thresh += .02;
+                } else if (c == 84) {
+                    demo_thresh -= .02;
+                    if(demo_thresh <= .02) demo_thresh = .02;
+                } else if (c == 83) {
+                    demo_hier += .02;
+                } else if (c == 81) {
+                    demo_hier -= .02;
+                    if(demo_hier <= .0) demo_hier = .0;
                 }
             }else{
                 char buff[256];
@@ -215,7 +240,7 @@ void demo(char *cfgfile, char *weightfile, float thresh, int cam_index, const ch
     }
 }
 #else
-void demo(char *cfgfile, char *weightfile, float thresh, int cam_index, const char *filename, char **names, int classes, int frame_skip, char *prefix, float hier_thresh)
+void demo(char *cfgfile, char *weightfile, float thresh, int cam_index, const char *filename, char **names, int classes, int frame_skip, char *prefix, float hier_thresh, int w, int h, int fps, int fullscreen)
 {
     fprintf(stderr, "Demo needs OpenCV for webcam images.\n");
 }

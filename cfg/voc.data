@@ -1,6 +1,6 @@
 classes= 4
-train  = /root/data/train.txt
-valid  = /root/data/2007_test.txt
+train  = /root/train.txt
+valid  = /root/2007_test.txt
 names = data/voc.names
 backup = backup
 

@@ -6,7 +6,7 @@ from os.path import join
 
 sets=[('2012', 'train'), ('2012', 'val'), ('2007', 'train'), ('2007', 'val'), ('2007', 'test')]
 
-classes = ["full_cart", "empty_cart", "full_basket", "empty_basket"]
+classes = ["cart","basket"]
 
 
 def convert(size, box):

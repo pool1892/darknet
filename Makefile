@@ -5,7 +5,7 @@ DEBUG=0
 
 
 # This is what I use, uncomment if you know your arch and want to specify
-ARCH=  -gencode arch=compute_37,code=compute_37
+ARCH=  -gencode arch=compute_62,code=compute_62
 
 VPATH=./src/
 EXEC=darknet
